@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div id="app-container">
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <button id="new-chat-btn"><i class="fas fa-pencil-alt"></i></button>
+                <button id="toggle-sidebar-btn"><i class="fas fa-chevron-left"></i></button>
+            </div>
+            <div id="conversation-list"></div>
+        </div>
+        <div id="chat-container">
+            <div id="chat-messages"></div>
+            <div id="chat-input-container">
+                <div id="upload-status-area"></div>
+                <div id="input-actions-container">
+                    <textarea id="chat-input" placeholder="Type your message here..."></textarea>
+                    <div id="input-buttons">
+                        <button id="model-select-btn" title="Select model"><i class="fas fa-microchip"></i></button>
+                        <div id="model-dropdown" class="model-dropdown">
+                            <button class="model-option" data-model="gemini-2.5-flash">gemini-2.5-flash</button>
+                            <button class="model-option" data-model="gemini-2.5-pro">gemini-2.5-pro</button>
+                        </div>
+                        <button id="upload-btn"><i class="fas fa-paperclip"></i></button>
+                        <button id="send-btn"><i class="fas fa-arrow-up"></i></button>
+                    </div>
+                </div>
+                <input type="file" id="file-input" multiple style="display: none;">
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+
+</html>

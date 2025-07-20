@@ -1,0 +1,494 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body,
+html {
+    height: 100%;
+    margin: 0;
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+}
+
+#app-container {
+    display: flex;
+    height: 100vh;
+}
+
+#sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    /* Prevent sidebar from shrinking */
+    background-color: #ffffff;
+    /* Changed to white */
+    color: #333;
+    /* Changed text color for better contrast */
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s;
+    border-right: 1px solid #e0e0e0;
+    /* Added a border */
+    position: relative;
+}
+
+#sidebar.collapsed {
+    width: 60px;
+    padding: 15px;
+}
+
+#sidebar.collapsed #conversation-list,
+#sidebar.collapsed #sidebar-header #new-chat-btn {
+    display: none;
+}
+
+#sidebar.collapsed #sidebar-header {
+    justify-content: center;
+}
+
+
+#sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px 10px 10px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 10px;
+}
+
+
+#new-chat-btn,
+#toggle-sidebar-btn {
+    background-color: transparent;
+    color: #333;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 1.2em;
+}
+
+#new-chat-btn:hover,
+#toggle-sidebar-btn:hover {
+    color: #007bff;
+}
+
+#conversation-list {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.conversation-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.conversation-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+    min-width: 0;
+    /* Crucial for text-overflow in flexbox */
+}
+
+.conversation-item:hover,
+.conversation-item.active {
+    background-color: #f0f0f0;
+}
+
+.conversation-item .conversation-menu-btn {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    flex-shrink: 0;
+}
+
+.conversation-item:hover .conversation-menu-btn {
+    visibility: visible;
+    opacity: 1;
+}
+
+.conversation-menu {
+    display: none;
+    /* Hidden by default */
+    position: absolute;
+    right: 5px;
+    top: 35px;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    /* Increased z-index to be safe */
+    overflow: visible;
+    /* Allow content to overflow */
+}
+
+.conversation-menu.visible {
+    display: block;
+}
+
+.conversation-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 15px;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.conversation-menu button:hover {
+    background-color: #f0f0f0;
+}
+
+.title-edit-input {
+    width: 100%;
+    padding: 2px 5px;
+    border: 1px solid #007bff;
+    outline: none;
+    font-size: 1em;
+}
+
+
+#chat-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background-color: #fff;
+}
+
+#chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.user-message {
+    background-color: #e1f5fe;
+    align-self: flex-end;
+}
+
+.model-message {
+    background-color: #f1f8e9;
+}
+
+.thoughts {
+    background-color: #f5f5f5;
+    border: 1px dashed #ccc;
+    padding: 10px 10px 12px 10px; /* 增加底部内边距 */
+    margin-bottom: 10px;
+    border-radius: 5px;
+    transition: max-height 0.4s ease-in-out;
+    overflow: hidden;
+    /* Hide overflow during transition */
+}
+
+.thoughts.collapsed {
+    max-height: 80px;
+    /* Default collapsed height, shows a few lines */
+}
+
+.thoughts.expanded {
+    max-height: 500px;
+    /* Expanded height */
+}
+
+.thoughts-header {
+    font-weight: bold;
+    cursor: pointer;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 5px;
+}
+
+.thoughts-content {
+    max-height: inherit;
+    /* Inherit height from parent */
+    overflow-y: auto;
+    /* Allow scrolling within the content area */
+    padding-bottom: 15px; /* 增加底部内边距，确保滚动条完全可见 */
+    /* 修复滚动条被遮挡问题 */
+    margin-right: 2px; /* 为滚动条提供一些右侧空间 */
+    padding-right: 5px; /* 确保内容不会贴近滚动条 */
+    margin-bottom: 3px; /* 为滚动条底部留出空间 */
+}
+
+
+#chat-input-container {
+    display: flex;
+    flex-direction: column;
+}
+
+#upload-status-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+    min-height: 0;
+}
+
+#input-actions-container {
+    position: relative;
+    width: 100%;
+}
+
+#chat-input {
+    width: 100%;
+    padding: 12px;
+    padding-right: 90px;
+    /* 留出足够的空间给按钮 */
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    resize: none;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 50px;
+}
+
+#input-buttons {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    display: flex;
+    gap: 8px;
+}
+
+#send-btn,
+#upload-btn,
+#model-select-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+#send-btn {
+    background-color: #333;
+    color: white;
+}
+
+#upload-btn,
+#model-select-btn {
+    background-color: transparent;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+#send-btn:hover {
+    background-color: #555;
+}
+
+#upload-btn:hover,
+#model-select-btn:hover {
+    background-color: #f0f0f0;
+}
+
+#send-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+#send-btn.stop-btn {
+    position: relative;
+    background-color: #333;
+}
+
+#send-btn.stop-btn i {
+    /* 替换上箭头图标为正方形停止图标 */
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-color: white;
+    border-radius: 0;
+}
+
+/* 旋转边框动画 */
+.rotating-border {
+    position: absolute;
+    width: calc(100% + 6px);
+    height: calc(100% + 6px);
+    top: -3px;
+    left: -3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: black;
+    animation: spin 1s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.upload-item {
+    display: flex;
+    align-items: center;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    padding: 5px 10px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.upload-item .upload-filename {
+    margin-right: 5px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.upload-item .upload-progress {
+    margin-right: 5px;
+}
+
+.upload-item .upload-status {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.upload-item .upload-status.pending {
+    background-color: #ffcc00;
+}
+
+.upload-item .upload-status.uploading {
+    background-color: #3498db;
+    animation: pulse 1.5s infinite;
+}
+
+.upload-item .upload-status.success {
+    background-color: #2ecc71;
+}
+
+.upload-item .upload-status.error {
+    background-color: #e74c3c;
+}
+
+.upload-item .upload-remove {
+    margin-left: 5px;
+    cursor: pointer;
+    color: #777;
+}
+
+.upload-item .upload-remove:hover {
+    color: #e74c3c;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* 模型选择下拉菜单 */
+.model-dropdown {
+    position: absolute;
+    bottom: 45px;
+    right: 90px;
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+    display: none;
+    z-index: 10;
+    overflow: hidden;
+    min-width: 160px;
+}
+
+.model-dropdown.visible {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.model-option {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.model-option:last-child {
+    border-bottom: none;
+}
+
+.model-option:hover {
+    background-color: #f5f5f5;
+}
+
+.model-option.active {
+    font-weight: bold;
+    background-color: #f9f9f9;
+    color: #007bff;
+}
+
+.model-tag {
+    font-size: 11px;
+    color: #888;
+    margin-top: 4px;
+    display: block;
+    font-style: italic;
+}
