@@ -333,6 +333,11 @@ def chat():
             full_response_text = ""
             full_thoughts_text = ""
             
+            # 跟踪令牌使用情况
+            prompt_token_count = 0
+            candidates_token_count = 0
+            thoughts_token_count = 0
+            
             # This structure mirrors gemini.py exactly
             stream = client.models.generate_content_stream(
                 model=model_name,
@@ -351,17 +356,42 @@ def chat():
                 if not chunk.candidates[0].content:
                     continue
                 
+                # 获取当前块的令牌使用信息
+                if hasattr(chunk, "usage_metadata") and chunk.usage_metadata:
+                    if hasattr(chunk.usage_metadata, "prompt_token_count"):
+                        prompt_token_count = chunk.usage_metadata.prompt_token_count
+                    if hasattr(chunk.usage_metadata, "candidates_token_count"):
+                        candidates_token_count = chunk.usage_metadata.candidates_token_count
+                    if hasattr(chunk.usage_metadata, "thoughts_token_count"):
+                        thoughts_token_count = chunk.usage_metadata.thoughts_token_count
+                
                 for part in chunk.candidates[0].content.parts:
                     if not hasattr(part, 'text') or not part.text:
                         continue
                     
                     if hasattr(part, 'thought') and part.thought:
                         full_thoughts_text += part.text
-                        data = json.dumps({"type": "thoughts", "content": part.text})
+                        data = json.dumps({
+                            "type": "thoughts", 
+                            "content": part.text,
+                            "usage": {
+                                "prompt_tokens": prompt_token_count,
+                                "completion_tokens": candidates_token_count,
+                                "thoughts_tokens": thoughts_token_count
+                            }
+                        })
                         yield f"data: {data}\n\n"
                     else:
                         full_response_text += part.text
-                        data = json.dumps({"type": "answer", "content": part.text})
+                        data = json.dumps({
+                            "type": "answer", 
+                            "content": part.text,
+                            "usage": {
+                                "prompt_tokens": prompt_token_count,
+                                "completion_tokens": candidates_token_count,
+                                "thoughts_tokens": thoughts_token_count
+                            }
+                        })
                         yield f"data: {data}\n\n"
 
             # --- Save history after successful streaming ---
@@ -371,7 +401,12 @@ def chat():
                 "role": "model",
                 "parts": [{"text": full_response_text}],
                 "thoughts": full_thoughts_text,
-                "model": model_name  # 添加使用的模型信息
+                "model": model_name,  # 添加使用的模型信息
+                "usage": {
+                    "prompt_tokens": prompt_token_count,
+                    "completion_tokens": candidates_token_count,
+                    "thoughts_tokens": thoughts_token_count
+                }
             }
             history_json.append(model_response)
             
@@ -395,7 +430,7 @@ def chat():
                 json.dump(save_data, f, indent=2)
 
             # Signal end of stream
-            yield f"data: {json.dumps({'type': 'done', 'new_title': save_data['title']})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'new_title': save_data['title'], 'usage': {'prompt_tokens': prompt_token_count, 'completion_tokens': candidates_token_count, 'thoughts_tokens': thoughts_token_count}})}\n\n"
 
         except Exception as e:
             print(f"Error during Gemini API call: {e}")

@@ -412,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let messageText = '';
                 const thoughtsText = msg.thoughts || null; // Get thoughts if they exist
                 const modelUsed = msg.model || null; // 获取使用的模型
+                const usage = msg.usage || null; // 获取令牌使用信息
 
                 if (msg.parts) {
                     const textParts = msg.parts.filter(p => 'text' in p);
@@ -425,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 }
-                addMessageToUI(msg.role, messageText, thoughtsText, false, modelUsed);
+                addMessageToUI(msg.role, messageText, thoughtsText, false, modelUsed, usage);
             });
             autoScroll(chatMessages);
         } catch (error) {
@@ -517,6 +518,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                     thoughtsContentEl.innerHTML += data.content.replace(/\n/g, '<br>');
                                     autoScroll(thoughtsContentEl); // Scroll thoughts box
+                                    
+                                    // 更新令牌使用信息
+                                    if (data.usage) {
+                                        updateTokenUsage(modelMessageElement, data.usage);
+                                    }
 
                                 } else if (data.type === 'answer') {
                                     if (!modelMessageElement) {
@@ -524,18 +530,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                         answerContentEl = modelMessageElement.querySelector('.message-content');
                                     }
                                     answerContentEl.innerHTML += data.content.replace(/\n/g, '<br>');
+                                    
+                                    // 更新令牌使用信息
+                                    if (data.usage) {
+                                        updateTokenUsage(modelMessageElement, data.usage);
+                                    }
                                 } else if (data.type === 'done') {
                                     if (data.new_title) {
                                         updateConversationTitleInUI(currentConversationId, data.new_title);
                                     }
                                     
-                                    // 删除下面的代码块，因为我们已经在创建消息元素时添加了模型信息
-                                    // if (modelMessageElement) {
-                                    //     const modelTag = document.createElement('div');
-                                    //     modelTag.classList.add('model-tag');
-                                    //     modelTag.textContent = `model: ${currentModel}`;
-                                    //     modelMessageElement.appendChild(modelTag);
-                                    // }
+                                    // 最终更新令牌使用信息
+                                    if (data.usage && modelMessageElement) {
+                                        updateTokenUsage(modelMessageElement, data.usage);
+                                    }
                                 } else if (data.type === 'error') {
                                     console.error('Stream error:', data.content);
                                     if (answerContentEl) {
@@ -572,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 切换发送按钮和停止按钮
     function toggleSendButtonToStop(isStop) {
         isModelResponding = isStop;
-        
+
         if (isStop) {
             // 更改为停止按钮
             sendBtn.classList.add('stop-btn');
@@ -590,25 +598,25 @@ document.addEventListener('DOMContentLoaded', () => {
             // 取消当前的fetch请求
             responseController.abort();
             responseController = null;
-            
+
             // 删除最后一个用户消息和模型响应（如果有）
             const messages = chatMessages.querySelectorAll('.message');
             const lastMessages = Array.from(messages).slice(-2); // 获取最后两条消息
-            
+
             lastMessages.forEach(msg => {
                 chatMessages.removeChild(msg);
             });
-            
+
             // 将用户的消息文本恢复到输入框
             chatInput.value = lastUserMessage;
             lastUserMessage = '';
-            
+
             // 恢复发送按钮
             toggleSendButtonToStop(false);
         }
     }
 
-    function addMessageToUI(sender, message, thoughts = null, isStreaming = false, modelUsed = null) {
+    function addMessageToUI(sender, message, thoughts = null, isStreaming = false, modelUsed = null, usage = null) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', `${sender}-message`);
 
@@ -624,12 +632,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         htmlContent += `<div class="message-content">${message.replace(/\n/g, '<br>')}</div>`;
-        
+
         // 如果是模型消息且有模型信息，添加模型标签
         if (sender === 'model' && modelUsed) {
+            htmlContent += `<div class="message-footer">`;
             htmlContent += `<div class="model-tag">model: ${modelUsed}</div>`;
+            
+            // 如果有令牌使用信息，添加令牌标签
+            if (usage) {
+                const promptTokens = usage.prompt_tokens || 0;
+                const completionTokens = usage.completion_tokens || 0;
+                const thoughtsTokens = usage.thoughts_tokens || 0;
+                htmlContent += `<div class="token-usage">tokens: ${promptTokens}/${thoughtsTokens}/${completionTokens}</div>`;
+            } else if (isStreaming) {
+                // 如果是流式消息，添加一个占位符，稍后更新
+                htmlContent += `<div class="token-usage">tokens: 0/0/0</div>`;
+            }
+            
+            htmlContent += `</div>`;
         }
-        
+
         messageElement.innerHTML = htmlContent;
 
         chatMessages.appendChild(messageElement);
@@ -644,6 +666,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return messageElement;
+    }
+    
+    // 更新令牌使用信息的函数
+    function updateTokenUsage(messageElement, usage) {
+        const tokenUsage = messageElement.querySelector('.token-usage');
+        if (tokenUsage) {
+            const promptTokens = usage.prompt_tokens || 0;
+            const completionTokens = usage.completion_tokens || 0;
+            const thoughtsTokens = usage.thoughts_tokens || 0;
+            tokenUsage.textContent = `tokens: ${promptTokens}/${thoughtsTokens}/${completionTokens}`;
+        }
     }
 
     function autoScroll(element) {
@@ -760,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize send button state
         updateSendButtonState();
-        
+
         // Initialize model selector
         initializeModelSelector();
     }

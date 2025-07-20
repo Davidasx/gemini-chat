@@ -198,7 +198,8 @@ html {
 .thoughts {
     background-color: #f5f5f5;
     border: 1px dashed #ccc;
-    padding: 10px 10px 12px 10px; /* 增加底部内边距 */
+    padding: 10px 10px 12px 10px;
+    /* 增加底部内边距 */
     margin-bottom: 10px;
     border-radius: 5px;
     transition: max-height 0.4s ease-in-out;
@@ -229,11 +230,15 @@ html {
     /* Inherit height from parent */
     overflow-y: auto;
     /* Allow scrolling within the content area */
-    padding-bottom: 15px; /* 增加底部内边距，确保滚动条完全可见 */
+    padding-bottom: 15px;
+    /* 增加底部内边距，确保滚动条完全可见 */
     /* 修复滚动条被遮挡问题 */
-    margin-right: 2px; /* 为滚动条提供一些右侧空间 */
-    padding-right: 5px; /* 确保内容不会贴近滚动条 */
-    margin-bottom: 3px; /* 为滚动条底部留出空间 */
+    margin-right: 2px;
+    /* 为滚动条提供一些右侧空间 */
+    padding-right: 5px;
+    /* 确保内容不会贴近滚动条 */
+    margin-bottom: 3px;
+    /* 为滚动条底部留出空间 */
 }
 
 
@@ -258,7 +263,7 @@ html {
 #chat-input {
     width: 100%;
     padding: 12px;
-    padding-right: 90px;
+    padding-right: 120px;
     /* 留出足够的空间给按钮 */
     border: 1px solid #ccc;
     border-radius: 20px;
@@ -431,11 +436,12 @@ html {
 .model-dropdown {
     position: absolute;
     bottom: 45px;
-    right: 90px;
+    left: 18px;
+    transform: translateX(-50%);
     background-color: white;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
     display: none;
     z-index: 10;
     overflow: hidden;
@@ -452,6 +458,7 @@ html {
         opacity: 0;
         transform: translateY(5px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -486,9 +493,30 @@ html {
 }
 
 .model-tag {
-    font-size: 11px;
+    font-size: 0.7em;
     color: #888;
-    margin-top: 4px;
-    display: block;
-    font-style: italic;
+    margin-top: 5px;
+}
+
+/* 添加message-footer样式 */
+.message-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+    font-size: 0.7em;
+    color: #888;
+}
+
+/* 令牌使用信息样式 */
+.token-usage {
+    text-align: right;
+    white-space: nowrap;
+    padding-left: 10px;
+    font-size: 0.75em;
+}
+
+/* 调整现有的model-tag样式，使其适应新的footer布局 */
+.message-footer .model-tag {
+    margin-top: 0;
 }
