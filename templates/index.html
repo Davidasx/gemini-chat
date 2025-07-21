@@ -5,13 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gemini Chat</title>
+    <link rel="icon" href="/assets/gemini.svg" type="image/svg+xml">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         #user-controls {
             display: flex;
             gap: 10px;
-            margin-left: auto;
+            justify-content: center;
         }
         #user-controls button {
             background: transparent;
@@ -34,18 +35,28 @@
     <div id="app-container">
         <div id="sidebar">
             <div id="sidebar-header">
-                <button id="new-chat-btn"><i class="fas fa-pencil-alt"></i></button>
+                <div class="header-top-row">
+                    <div id="logo-container">
+                        <img src="/assets/gemini.svg" alt="Gemini Logo" id="gemini-logo">
+                    </div>
+                    <button id="toggle-sidebar-btn"><i class="fas fa-chevron-left"></i></button>
+                </div>
+                <button id="new-chat-btn"><i class="fas fa-pencil-alt"></i><span class="btn-text">New Chat</span></button>
+            </div>
+            <div id="conversation-list"></div>
+            <div id="sidebar-footer">
                 <div id="user-controls">
                     {% if current_user.is_admin %}
                     <button id="admin-link" title="Admin Panel"><i class="fas fa-users-cog"></i></button>
                     {% endif %}
                     <button id="logout-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
-                <button id="toggle-sidebar-btn"><i class="fas fa-chevron-left"></i></button>
             </div>
-            <div id="conversation-list"></div>
         </div>
         <div id="chat-container">
+            <div id="chat-title">
+                <h3 id="current-chat-title">New Chat</h3>
+            </div>
             <div id="chat-messages"></div>
             <div id="chat-input-container">
                 <div id="upload-status-area"></div>

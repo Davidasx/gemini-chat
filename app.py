@@ -3,7 +3,7 @@ import json
 import uuid
 import time
 import datetime
-from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, session, flash
+from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, session, flash, send_from_directory
 from google import genai
 from google.genai import types
 import random
@@ -51,6 +51,11 @@ def inject_current_time():
     
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('conversations', exist_ok=True)
+
+# 添加路由以提供assets目录中的文件
+@app.route('/assets/<path:filename>')
+def serve_asset(filename):
+    return send_from_directory('assets', filename)
 
 # Load API keys from file and initialize client globally
 client = None

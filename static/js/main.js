@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelSelectBtn = document.getElementById('model-select-btn');
     const modelDropdown = document.getElementById('model-dropdown');
     const modelOptions = document.querySelectorAll('.model-option');
+    const currentChatTitle = document.getElementById('current-chat-title');
 
     let currentConversationId = null;
     // Track uploaded files and their status
@@ -50,12 +51,32 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleSidebarBtn.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
         const icon = toggleSidebarBtn.querySelector('i');
+
+        // 根据侧边栏状态更新图标
         if (sidebar.classList.contains('collapsed')) {
+            // 侧边栏折叠，箭头应指向右侧
             icon.classList.remove('fa-chevron-left');
             icon.classList.add('fa-chevron-right');
         } else {
+            // 侧边栏展开，箭头应指向左侧
             icon.classList.remove('fa-chevron-right');
             icon.classList.add('fa-chevron-left');
+        }
+
+        // 检测是否是移动设备视图
+        const isMobileView = window.innerWidth <= 768;
+        if (isMobileView && !sidebar.classList.contains('collapsed')) {
+            // 在移动设备上，当侧边栏展开时，点击聊天区域应该收起侧边栏
+            document.getElementById('chat-container').addEventListener('click', function closeSidebarOnMobile() {
+                sidebar.classList.add('collapsed');
+
+                // 更新图标为指向右侧的箭头
+                icon.classList.remove('fa-chevron-left');
+                icon.classList.add('fa-chevron-right');
+
+                // 移除事件监听器，防止重复添加
+                this.removeEventListener('click', closeSidebarOnMobile);
+            });
         }
     });
 
@@ -303,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     menuButtonHTML = `
                     <button class="conversation-menu-btn"><i class="fas fa-ellipsis-v"></i></button>
                     <div class="conversation-menu">
-                        <button class="menu-edit-btn">Edit</button>
+                        <button class="menu-rename-btn">Rename</button>
                         <button class="menu-delete-btn">Delete</button>
                     </div>
                     `;
@@ -379,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- Handle Edit Button Click ---
-        if (target.closest('.menu-edit-btn')) {
+        if (target.closest('.menu-rename-btn')) {
             event.stopPropagation();
             handleEditConversation(convItem);
             return;
@@ -402,6 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadConversation(conversationId) {
         if (!conversationId) {
             chatMessages.innerHTML = '';
+            currentChatTitle.textContent = 'New Chat';
             return;
         }
         try {
@@ -429,6 +451,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 addMessageToUI(msg.role, messageText, thoughtsText, false, modelUsed, usage);
             });
             autoScroll(chatMessages);
+
+            // 更新聊天标题
+            updateCurrentChatTitle(conversationId);
         } catch (error) {
             console.error(`Failed to load conversation ${conversationId}:`, error);
         }
@@ -518,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                     thoughtsContentEl.innerHTML += data.content.replace(/\n/g, '<br>');
                                     autoScroll(thoughtsContentEl); // Scroll thoughts box
-                                    
+
                                     // 更新令牌使用信息
                                     if (data.usage) {
                                         updateTokenUsage(modelMessageElement, data.usage);
@@ -530,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         answerContentEl = modelMessageElement.querySelector('.message-content');
                                     }
                                     answerContentEl.innerHTML += data.content.replace(/\n/g, '<br>');
-                                    
+
                                     // 更新令牌使用信息
                                     if (data.usage) {
                                         updateTokenUsage(modelMessageElement, data.usage);
@@ -539,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     if (data.new_title) {
                                         updateConversationTitleInUI(currentConversationId, data.new_title);
                                     }
-                                    
+
                                     // 最终更新令牌使用信息
                                     if (data.usage && modelMessageElement) {
                                         updateTokenUsage(modelMessageElement, data.usage);
@@ -637,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sender === 'model' && modelUsed) {
             htmlContent += `<div class="message-footer">`;
             htmlContent += `<div class="model-tag">model: ${modelUsed}</div>`;
-            
+
             // 如果有令牌使用信息，添加令牌标签
             if (usage) {
                 const promptTokens = usage.prompt_tokens || 0;
@@ -648,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 如果是流式消息，添加一个占位符，稍后更新
                 htmlContent += `<div class="token-usage">tokens: 0/0/0</div>`;
             }
-            
+
             htmlContent += `</div>`;
         }
 
@@ -667,7 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return messageElement;
     }
-    
+
     // 更新令牌使用信息的函数
     function updateTokenUsage(messageElement, usage) {
         const tokenUsage = messageElement.querySelector('.token-usage');
@@ -720,7 +745,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: JSON.stringify({ title: newTitle }),
                     });
                     if (!response.ok) throw new Error('Failed to save title');
-                    // Title in UI is already updated, so nothing more to do here.
+
+                    // 使用updateConversationTitleInUI函数同时更新侧边栏和顶部标题
+                    updateConversationTitleInUI(convItem.dataset.id, newTitle);
                 } catch (error) {
                     console.error(error);
                     newTitleSpan.textContent = currentTitle; // Revert on error
@@ -774,6 +801,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (convItem) {
             const titleSpan = convItem.querySelector('.conversation-title');
             if (titleSpan) titleSpan.textContent = newTitle;
+
+            // 如果是当前对话，同时更新页面顶部的标题
+            if (conversationId === currentConversationId) {
+                currentChatTitle.textContent = newTitle;
+            }
+        }
+    }
+
+    // 添加获取和更新当前聊天标题的函数
+    async function updateCurrentChatTitle(conversationId) {
+        try {
+            const conversations = await fetchConversationList();
+            const currentConversation = conversations.find(conv => conv.id === conversationId);
+            if (currentConversation) {
+                currentChatTitle.textContent = currentConversation.title;
+            } else {
+                currentChatTitle.textContent = 'New Chat';
+            }
+        } catch (error) {
+            console.error('Failed to update current chat title:', error);
+            currentChatTitle.textContent = 'Chat';
         }
     }
 
@@ -800,7 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initialLoad();
 
-}); 
+});
 
 // Add authentication error handling
 function handleAuthenticationError(response) {
@@ -816,10 +864,10 @@ function handleAuthenticationError(response) {
 async function fetchConversationList() {
     try {
         const response = await fetch('/api/conversations');
-        
+
         // Handle authentication errors
         if (handleAuthenticationError(response)) return [];
-        
+
         if (!response.ok) {
             throw new Error(`Failed to fetch conversations: ${response.status}`);
         }
@@ -851,11 +899,31 @@ function setupAdminLink() {
     }
 }
 
+// 添加窗口大小变化的响应处理
+function setupResponsiveHandling() {
+    // 初始检查是否为移动视图
+    const checkMobileView = () => {
+        const isMobileView = window.innerWidth <= 768;
+        document.body.classList.toggle('mobile-view', isMobileView);
+    };
+
+    // 页面加载时检查
+    checkMobileView();
+
+    // 窗口大小变化时检查
+    window.addEventListener('resize', () => {
+        checkMobileView();
+    });
+}
+
 // Add initialization for auth-related elements
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // ... existing initialization code ...
-    
+
     // Add auth-related setup
     setupLogoutButton();
     setupAdminLink();
+
+    // 设置响应式处理
+    setupResponsiveHandling();
 }); 

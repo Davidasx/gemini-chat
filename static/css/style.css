@@ -32,6 +32,8 @@ html {
     border-right: 1px solid #e0e0e0;
     /* Added a border */
     position: relative;
+    z-index: 100;
+    /* 确保侧边栏在移动视图中位于顶层 */
 }
 
 #sidebar.collapsed {
@@ -40,7 +42,8 @@ html {
 }
 
 #sidebar.collapsed #conversation-list,
-#sidebar.collapsed #sidebar-header #new-chat-btn {
+#sidebar.collapsed #sidebar-header .btn-text,
+#sidebar.collapsed #logo-container {
     display: none;
 }
 
@@ -48,18 +51,69 @@ html {
     justify-content: center;
 }
 
+#sidebar.collapsed .header-top-row {
+    justify-content: center;
+}
+
+#sidebar.collapsed #sidebar-footer {
+    display: none;
+}
 
 #sidebar-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 10px 10px 10px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 0 10px 0;
     border-bottom: 1px solid #e0e0e0;
     margin-bottom: 10px;
 }
 
+/* 添加顶部行样式 */
+.header-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
 
-#new-chat-btn,
+/* 修改Logo容器样式 */
+#logo-container {
+    display: flex;
+    justify-content: flex-start;
+}
+
+#gemini-logo {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+#sidebar-footer {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #e0e0e0;
+}
+
+#new-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: transparent;
+    color: #333;
+    border: none;
+    border-radius: 0;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 0.9em;
+    width: 100%;
+    margin-bottom: 0;
+    text-align: left;
+}
+
+#new-chat-btn:hover {
+    background-color: #f0f0f0;
+}
+
 #toggle-sidebar-btn {
     background-color: transparent;
     color: #333;
@@ -67,11 +121,27 @@ html {
     padding: 5px;
     cursor: pointer;
     font-size: 1.2em;
+    align-self: flex-end;
 }
 
-#new-chat-btn:hover,
 #toggle-sidebar-btn:hover {
     color: #007bff;
+}
+
+/* 确保图标在所有设备上保持一致方向 */
+#sidebar.collapsed #toggle-sidebar-btn i.fa-chevron-right {
+    transform: rotate(0);
+    /* 当侧边栏折叠时，箭头指向右侧 */
+}
+
+#sidebar:not(.collapsed) #toggle-sidebar-btn i.fa-chevron-left {
+    transform: rotate(0);
+    /* 当侧边栏展开时，箭头指向左侧 */
+}
+
+#sidebar.collapsed #new-chat-btn {
+    justify-content: center;
+    padding: 10px 0;
 }
 
 #conversation-list {
@@ -170,6 +240,23 @@ html {
     flex-direction: column;
     padding: 20px;
     background-color: #fff;
+}
+
+#chat-title {
+    text-align: center;
+    padding: 5px 0 15px 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+#chat-title h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #333;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #chat-messages {
@@ -436,7 +523,7 @@ html {
 .model-dropdown {
     position: absolute;
     bottom: 45px;
-    left: 18px;
+    left: 50%;
     transform: translateX(-50%);
     background-color: white;
     border: 1px solid #e0e0e0;
@@ -456,12 +543,12 @@ html {
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(5px);
+        transform: translateX(-50%) translateY(5px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(-50%) translateY(0);
     }
 }
 
@@ -519,4 +606,66 @@ html {
 /* 调整现有的model-tag样式，使其适应新的footer布局 */
 .message-footer .model-tag {
     margin-top: 0;
+}
+
+/* 移动视图适配 */
+/* 适用于整个body的移动视图类 */
+body.mobile-view #chat-title {
+    padding-left: 50px;
+    /* 为侧边栏切换按钮留出空间 */
+}
+
+@media (max-width: 768px) {
+    #app-container {
+        position: relative;
+        /* 让子元素可以相对于它进行绝对定位 */
+    }
+
+    #sidebar {
+        position: absolute;
+        /* 在移动视图中使用绝对定位 */
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 80%;
+        /* 移动设备上侧边栏宽度 */
+        max-width: 300px;
+        transform: translateX(0);
+        transition: transform 0.3s ease;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #sidebar.collapsed {
+        transform: translateX(-100%);
+        /* 完全隐藏侧边栏 */
+        width: 80%;
+        /* 保持一致的宽度，防止尺寸变化导致动画问题 */
+    }
+
+    /* 当侧边栏折叠时，隐藏新建聊天按钮 */
+    #sidebar.collapsed #new-chat-btn {
+        display: none;
+    }
+
+    /* 改变侧边栏切换按钮的位置，使其始终可见 */
+    #toggle-sidebar-btn {
+        position: absolute;
+        top: 15px;
+        right: -45px;
+        /* 按钮放在侧边栏外边 */
+        background-color: white;
+        padding: 8px;
+        border-radius: 50%;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        z-index: 100;
+    }
+
+    #chat-container {
+        width: 100%;
+        /* 聊天区域占满整个宽度 */
+        margin-left: 0;
+        /* 不留空间给侧边栏 */
+    }
+
+    /* 移动设备上使用全局箭头方向样式 */
 }
