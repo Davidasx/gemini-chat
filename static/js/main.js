@@ -14,6 +14,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelOptions = document.querySelectorAll('.model-option');
     const currentChatTitle = document.getElementById('current-chat-title');
 
+    // Check if we're on mobile view and collapse the sidebar by default
+    const isMobileView = window.innerWidth <= 768;
+    if (isMobileView) {
+        sidebar.classList.add('collapsed');
+        const icon = toggleSidebarBtn.querySelector('i');
+        if (icon) {
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
+        }
+    }
+
     let currentConversationId = null;
     // Track uploaded files and their status
     const uploadedFiles = new Map();
@@ -905,7 +916,50 @@ function setupResponsiveHandling() {
     const checkMobileView = () => {
         const isMobileView = window.innerWidth <= 768;
         document.body.classList.toggle('mobile-view', isMobileView);
+
+        // 当切换为移动视图时，自动折叠侧边栏
+        if (isMobileView) {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && !sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                const icon = document.querySelector('#toggle-sidebar-btn i');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-left');
+                    icon.classList.add('fa-chevron-right');
+                }
+            }
+            
+            // 处理iOS上的回弹效果
+            document.addEventListener('touchmove', function (e) {
+                // 如果不是在可滚动区域内，则阻止默认行为
+                if (!isInScrollableArea(e.target)) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        } else {
+            // 移除移动视图相关的事件监听器
+            document.removeEventListener('touchmove', function (e) {
+                if (!isInScrollableArea(e.target)) {
+                    e.preventDefault();
+                }
+            });
+        }
     };
+
+    // 检查元素是否在可滚动区域内
+    function isInScrollableArea(element) {
+        // 查找最近的可滚动父元素
+        while (element && element !== document.body) {
+            // 检查是否有溢出且可滚动
+            const overflowY = window.getComputedStyle(element).overflowY;
+            if (overflowY === 'auto' || overflowY === 'scroll') {
+                // 检查元素是否可以滚动（内容高度大于容器高度）
+                return element.scrollHeight > element.clientHeight;
+            }
+            element = element.parentElement;
+        }
+        return false;
+    }
 
     // 页面加载时检查
     checkMobileView();
@@ -914,9 +968,37 @@ function setupResponsiveHandling() {
     window.addEventListener('resize', () => {
         checkMobileView();
     });
+
+    // 修复iOS中虚拟键盘引起的视口高度问题
+    window.addEventListener('resize', () => {
+        // 只在移动视图下处理
+        if (document.body.classList.contains('mobile-view')) {
+            // 设置视口高度为实际可用高度
+            document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+            // 调整聊天消息区域高度
+            adjustChatMessagesHeight();
+        }
+    });
 }
 
 // Add initialization for auth-related elements
+// 调整聊天消息区域高度的全局函数
+function adjustChatMessagesHeight() {
+    const chatMessages = document.getElementById('chat-messages');
+    const chatContainer = document.getElementById('chat-container');
+    const chatTitle = document.getElementById('chat-title');
+    const chatInputContainer = document.getElementById('chat-input-container');
+
+    if (chatMessages && chatContainer && chatTitle && chatInputContainer) {
+        const containerHeight = chatContainer.offsetHeight;
+        const titleHeight = chatTitle.offsetHeight;
+        const inputHeight = chatInputContainer.offsetHeight;
+        // 计算聊天区域应有的高度
+        const messagesHeight = containerHeight - titleHeight - inputHeight - 40; // 40px为额外边距
+        chatMessages.style.maxHeight = `${messagesHeight}px`;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // ... existing initialization code ...
 
@@ -926,4 +1008,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 设置响应式处理
     setupResponsiveHandling();
+
+    // 首次加载时设置视口高度变量并调整布局
+    if (window.innerWidth <= 768) {
+        document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+        // 给DOM足够时间渲染
+        setTimeout(() => {
+            adjustChatMessagesHeight();
+        }, 100);
+    }
 }); 

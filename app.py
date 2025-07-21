@@ -175,30 +175,36 @@ def list_conversations():
                     data = json.load(f)
                     title = "New Chat"
                     sort_key = os.path.getmtime(filepath) # Fallback sort key
+                    creator = None  # 默认创建者为空
 
                     if isinstance(data, dict):
                         title = data.get('title', title)
                         sort_key = data.get('created_at', sort_key)
                         is_empty = not data.get('history') # Check if history is empty
+                        creator = data.get('creator')  # 获取创建者信息
                     elif isinstance(data, list) and data:
                         title = data[0].get('parts', [{}])[0].get('text', 'New Chat').split('\n')[0][:30]
                         is_empty = False # Old format implies not empty if list has content
                     else: # Handles empty list case for old format
                         is_empty = True
-
+                    
+                    # 仅添加当前用户创建的聊天或没有创建者信息的旧聊天记录（向后兼容）
+                    if creator is None or creator == current_user.username:
+                        conversations.append({
+                            'id': conversation_id,
+                            'title': title,
+                            'sort_key': sort_key,
+                            'is_empty': is_empty
+                        })
+            except (json.JSONDecodeError, IndexError):
+                # 对于损坏的文件，我们假设它没有创建者，但仍然仅允许管理员看到它们
+                if current_user.is_admin:
                     conversations.append({
                         'id': conversation_id,
-                        'title': title,
-                        'sort_key': sort_key,
-                        'is_empty': is_empty
+                        'title': 'Corrupted Chat',
+                        'sort_key': os.path.getmtime(filepath),
+                        'is_empty': True # Treat corrupted as empty for safety
                     })
-            except (json.JSONDecodeError, IndexError):
-                conversations.append({
-                    'id': conversation_id,
-                    'title': 'Corrupted Chat',
-                    'sort_key': os.path.getmtime(filepath),
-                    'is_empty': True # Treat corrupted as empty for safety
-                })
                 continue
 
     conversations.sort(key=lambda x: x['sort_key'], reverse=True)
@@ -218,7 +224,8 @@ def create_conversation():
         json.dump({
             'title': 'New Chat',
             'history': [],
-            'created_at': time.time()
+            'created_at': time.time(),
+            'creator': current_user.username  # 添加创建者字段，保存当前用户名
         }, f, indent=2)
     return jsonify({'id': conversation_id, 'title': 'New Chat', 'is_empty': True})
 
@@ -228,6 +235,10 @@ def get_conversation(conversation_id):
     filepath = os.path.join('conversations', f"{conversation_id}.json")
     if not os.path.exists(filepath):
         return jsonify({'error': 'Conversation not found'}), 404
+    
+    # 检查当前用户是否有权限访问该聊天记录
+    if not check_conversation_permission(filepath):
+        return jsonify({'error': 'Access denied'}), 403
     
     with open(filepath, 'r') as f:
         try:
@@ -244,10 +255,15 @@ def get_conversation(conversation_id):
 @login_required
 def delete_conversation(conversation_id):
     filepath = os.path.join('conversations', f"{conversation_id}.json")
-    if os.path.exists(filepath):
-        os.remove(filepath)
-        return jsonify({'success': True}), 200
-    return jsonify({'error': 'Conversation not found'}), 404
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Conversation not found'}), 404
+    
+    # 检查当前用户是否有权限删除该聊天记录
+    if not check_conversation_permission(filepath):
+        return jsonify({'error': 'Access denied'}), 403
+    
+    os.remove(filepath)
+    return jsonify({'success': True}), 200
 
 @app.route('/api/conversations/<conversation_id>', methods=['PUT'])
 @login_required
@@ -255,6 +271,10 @@ def update_conversation_metadata(conversation_id):
     filepath = os.path.join('conversations', f"{conversation_id}.json")
     if not os.path.exists(filepath):
         return jsonify({'error': 'Conversation not found'}), 404
+        
+    # 检查当前用户是否有权限更新该聊天记录
+    if not check_conversation_permission(filepath):
+        return jsonify({'error': 'Access denied'}), 403
         
     update_data = request.get_json()
     if not update_data or 'title' not in update_data:
@@ -274,6 +294,10 @@ def update_conversation_metadata(conversation_id):
             data['title'] = update_data['title']
             data['created_at'] = created_at # Ensure it's preserved
             
+            # 确保creator字段不会丢失
+            if 'creator' not in data:
+                data['creator'] = current_user.username
+            
             f.seek(0)
             f.truncate()
             json.dump(data, f, indent=2)
@@ -290,6 +314,12 @@ def chat():
     conversation_id = request.form.get('conversation_id')
     if not conversation_id:
         return jsonify({"error": "Missing conversation_id"}), 400
+
+    # 检查文件是否存在，如果存在则检查权限
+    conversation_path = os.path.join('conversations', f"{conversation_id}.json")
+    if os.path.exists(conversation_path):
+        if not check_conversation_permission(conversation_path):
+            return jsonify({'error': 'Access denied'}), 403
 
     user_message_text = request.form.get('message', '')
     files = request.files.getlist('attachments')
@@ -367,6 +397,7 @@ def chat():
     history_json = []
     current_title = "New Chat"
     created_at_time = time.time() # Default for new/malformed files
+    creator = current_user.username  # 默认创建者为当前用户
 
     try:
         with open(conversation_path, 'r') as f:
@@ -375,6 +406,7 @@ def chat():
                 current_title = data.get('title', "New Chat")
                 history_json = data.get('history', [])
                 created_at_time = data.get('created_at', os.path.getmtime(conversation_path))
+                creator = data.get('creator', current_user.username)  # 获取创建者信息，如果没有则使用当前用户
             else: # Old format
                 history_json = data
                 created_at_time = os.path.getmtime(conversation_path) # Get timestamp for migration
@@ -505,7 +537,8 @@ def chat():
                 save_data = {
                     'title': current_title,
                     'history': history_json,
-                    'created_at': created_at_time
+                    'created_at': created_at_time,
+                    'creator': creator  # 保存创建者信息
                 }
                 # 如果这是新对话，使用 generate_title 生成标题
                 if len(history_json) == 2 and save_data['title'] == 'New Chat': # user + model
@@ -595,5 +628,22 @@ def create_user():
 def initialize_app():
     User.initialize_default_admin(config.DEFAULT_ADMIN_USERNAME, config.DEFAULT_ADMIN_PASSWORD)
 
+# 添加权限检查函数
+def check_conversation_permission(filepath):
+    """检查当前用户是否有权限访问指定的聊天记录文件"""
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                creator = data.get('creator')
+                # 如果没有创建者信息（旧记录）或当前用户是创建者或管理员，则允许访问
+                return creator is None or creator == current_user.username or current_user.is_admin
+            else:
+                # 对于旧格式的文件，只允许管理员访问
+                return current_user.is_admin
+    except (json.JSONDecodeError, IOError):
+        # 对于损坏的文件，只允许管理员访问
+        return current_user.is_admin
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001) 
+    app.run(debug=True, port=5001, host='0.0.0.0') 

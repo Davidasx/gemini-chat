@@ -12,6 +12,18 @@ html {
     background-color: #f0f0f0;
 }
 
+/* 添加移动设备滚动条处理 */
+body.mobile-view {
+    overflow: hidden;
+    /* 禁用整个页面的滚动 */
+    position: fixed;
+    /* 固定位置，防止iOS上仍可滚动 */
+    width: 100%;
+    /* 确保宽度为100% */
+    height: 100%;
+    /* 确保高度为100% */
+}
+
 #app-container {
     display: flex;
     height: 100vh;
@@ -147,6 +159,8 @@ html {
 #conversation-list {
     flex-grow: 1;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* 在iOS设备上实现平滑滚动 */
 }
 
 .conversation-item {
@@ -262,6 +276,8 @@ html {
 #chat-messages {
     flex-grow: 1;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* 在iOS设备上实现平滑滚动 */
     margin-bottom: 20px;
     border: 1px solid #ccc;
     padding: 10px;
@@ -613,6 +629,31 @@ html {
 body.mobile-view #chat-title {
     padding-left: 50px;
     /* 为侧边栏切换按钮留出空间 */
+}
+
+/* 确保移动视图中聊天容器可以占据整个高度并滚动 */
+:root {
+    --vh: 1vh;
+    /* 默认值，将被JS动态替换 */
+}
+
+body.mobile-view #chat-container {
+    height: 100vh;
+    /* 回退值 */
+    height: calc(var(--vh, 1vh) * 100);
+    /* 使用动态计算的视口高度 */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+body.mobile-view #chat-messages {
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - 160px);
+    /* 回退值 */
+    max-height: calc((var(--vh, 1vh) * 100) - 160px);
+    /* 使用动态视口高度 */
+    overflow-y: auto;
 }
 
 @media (max-width: 768px) {
