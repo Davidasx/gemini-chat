@@ -1,2 +1,5 @@
 conversations/*
 uploads/*
+.env
+__pycache__/
+users.json

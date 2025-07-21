@@ -7,6 +7,27 @@
     <title>Gemini Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        #user-controls {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+        #user-controls button {
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 0.9em;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #user-controls button:hover {
+            color: #0070f3;
+        }
+    </style>
 </head>
 
 <body>
@@ -14,6 +35,12 @@
         <div id="sidebar">
             <div id="sidebar-header">
                 <button id="new-chat-btn"><i class="fas fa-pencil-alt"></i></button>
+                <div id="user-controls">
+                    {% if current_user.is_admin %}
+                    <button id="admin-link" title="Admin Panel"><i class="fas fa-users-cog"></i></button>
+                    {% endif %}
+                    <button id="logout-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
                 <button id="toggle-sidebar-btn"><i class="fas fa-chevron-left"></i></button>
             </div>
             <div id="conversation-list"></div>

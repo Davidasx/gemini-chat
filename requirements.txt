@@ -1,2 +1,6 @@
 Flask
-google-generativeai 
+google-genai
+flask-login
+bcrypt
+Flask-Limiter
+python-dotenv 

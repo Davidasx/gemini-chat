@@ -2,16 +2,53 @@ import os
 import json
 import uuid
 import time
-from flask import Flask, render_template, request, jsonify, Response
+import datetime
+from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, session, flash
 from google import genai
 from google.genai import types
 import random
 import itertools
 import mimetypes
 from pydantic import BaseModel
+import flask_login
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from user import User
+import config
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['SECRET_KEY'] = config.SECRET_KEY
+app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH  # 50MB max upload
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+
+# Set up rate limiting
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
+
+# Add template filters
+@app.template_filter('timestamp_to_date')
+def timestamp_to_date(timestamp):
+    """Convert a Unix timestamp to a formatted date string."""
+    dt = datetime.datetime.fromtimestamp(timestamp)
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+# Add context processor to provide current time to templates
+@app.context_processor
+def inject_current_time():
+    return {'current_time': time.time()}
+    
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('conversations', exist_ok=True)
 
@@ -75,11 +112,53 @@ def generate_title(history_json):
     title=response.parsed.title
     return title
 
+@login_manager.user_loader
+def load_user(user_id):
+    return User.get_by_id(user_id)
+
+@app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")  # Rate limiting for login attempts
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if not username or not password:
+            error = "Please provide both username and password"
+        else:
+            success, message = User.verify_password(
+                username, 
+                password, 
+                lockout_attempts=config.LOGIN_ATTEMPTS_BEFORE_LOCKOUT,
+                lockout_minutes=config.LOCKOUT_TIME_MINUTES
+            )
+            
+            if success:
+                user = User.get_user(username)
+                login_user(user)
+                return redirect(url_for('index'))
+            else:
+                error = message
+    
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/api/conversations', methods=['GET'])
+@login_required
 def list_conversations():
     conversations = []
     for filename in os.listdir('conversations'):
@@ -126,6 +205,7 @@ def list_conversations():
     return jsonify(conversations)
 
 @app.route('/api/conversations', methods=['POST'])
+@login_required
 def create_conversation():
     conversation_id = str(uuid.uuid4())
     filepath = os.path.join('conversations', f"{conversation_id}.json")
@@ -138,6 +218,7 @@ def create_conversation():
     return jsonify({'id': conversation_id, 'title': 'New Chat', 'is_empty': True})
 
 @app.route('/api/conversations/<conversation_id>', methods=['GET'])
+@login_required
 def get_conversation(conversation_id):
     filepath = os.path.join('conversations', f"{conversation_id}.json")
     if not os.path.exists(filepath):
@@ -155,6 +236,7 @@ def get_conversation(conversation_id):
             return jsonify([]) # Return empty list for empty/malformed files
 
 @app.route('/api/conversations/<conversation_id>', methods=['DELETE'])
+@login_required
 def delete_conversation(conversation_id):
     filepath = os.path.join('conversations', f"{conversation_id}.json")
     if os.path.exists(filepath):
@@ -163,6 +245,7 @@ def delete_conversation(conversation_id):
     return jsonify({'error': 'Conversation not found'}), 404
 
 @app.route('/api/conversations/<conversation_id>', methods=['PUT'])
+@login_required
 def update_conversation_metadata(conversation_id):
     filepath = os.path.join('conversations', f"{conversation_id}.json")
     if not os.path.exists(filepath):
@@ -196,6 +279,8 @@ def update_conversation_metadata(conversation_id):
 
 
 @app.route('/api/chat', methods=['POST'])
+@login_required
+@limiter.limit("30 per minute")  # Rate limiting for chat API
 def chat():
     conversation_id = request.form.get('conversation_id')
     if not conversation_id:
@@ -441,6 +526,8 @@ def chat():
 
 
 @app.route('/api/upload', methods=['POST'])
+@login_required
+@limiter.limit("20 per minute")  # Rate limiting for file uploads
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -469,6 +556,39 @@ def upload_file():
         "mime_type": mime_type,
         "file_uri": filepath
     })
+
+# Admin panel routes
+@app.route('/admin', methods=['GET'])
+@login_required
+def admin_panel():
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+    
+    users = User.load_users()
+    return render_template('admin.html', users=users)
+
+@app.route('/admin/create_user', methods=['POST'])
+@login_required
+def create_user():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    data = request.get_json()
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({"error": "Missing username or password"}), 400
+    
+    is_admin = data.get('is_admin', False)
+    success, message = User.create_user(data['username'], data['password'], is_admin)
+    
+    if success:
+        return jsonify({"message": message}), 201
+    else:
+        return jsonify({"error": message}), 400
+
+# Initialize the default admin user if no users exist
+@app.before_request
+def initialize_app():
+    User.initialize_default_admin(config.DEFAULT_ADMIN_USERNAME, config.DEFAULT_ADMIN_PASSWORD)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001) 

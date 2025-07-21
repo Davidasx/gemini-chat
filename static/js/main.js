@@ -801,3 +801,61 @@ document.addEventListener('DOMContentLoaded', () => {
     initialLoad();
 
 }); 
+
+// Add authentication error handling
+function handleAuthenticationError(response) {
+    if (response.status === 401 || response.status === 403) {
+        // Redirect to login page
+        window.location.href = '/login';
+        return true;
+    }
+    return false;
+}
+
+// Modify fetch conversation list function to handle auth errors
+async function fetchConversationList() {
+    try {
+        const response = await fetch('/api/conversations');
+        
+        // Handle authentication errors
+        if (handleAuthenticationError(response)) return [];
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch conversations: ${response.status}`);
+        }
+        const conversations = await response.json();
+        return conversations;
+    } catch (error) {
+        console.error('Error fetching conversations:', error);
+        return [];
+    }
+}
+
+// Add logout functionality
+function setupLogoutButton() {
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            window.location.href = '/logout';
+        });
+    }
+}
+
+// Add admin panel link if user is admin
+function setupAdminLink() {
+    const adminLink = document.getElementById('admin-link');
+    if (adminLink) {
+        adminLink.addEventListener('click', () => {
+            window.location.href = '/admin';
+        });
+    }
+}
+
+// Add initialization for auth-related elements
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing initialization code ...
+    
+    // Add auth-related setup
+    setupLogoutButton();
+    setupAdminLink();
+}); 
